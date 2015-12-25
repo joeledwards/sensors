@@ -1,0 +1,19 @@
+{
+  "name": "sensors",
+  "version": "1.0.0",
+  "description": "Raspberry Pi Sensors",
+  "main": "sensors.js",
+  "scripts": {
+    "test": "node test.js"
+  },
+  "keywords": [
+    "raspberry"
+  ],
+  "author": "Joel Edwards",
+  "license": "MIT",
+  "dependencies": {
+    "lodash": "*",
+    "q": "^1.4.1",
+    "rpi-gpio": "*"
+  }
+}
