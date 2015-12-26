@@ -6,8 +6,7 @@ const red = 11;
 const green = 13;
 const blue = 15;
 
-const duration = 1000;
-var pin = blue;
+const duration = 500;
 
 const ON = true;
 const OFF = false;
@@ -61,23 +60,23 @@ function pulse(pin, duration) {
   return d.promise;
 }
 
-console.log("Pulsing red...");
-pulse(red, 1000)
-.then(() => {
-  console.log("Pulsing green...");
-  return pulse(green, 1000)
-})
-.then(() => {
-  console.log("Pulsing blue...");
-  return pulse(blue, 1000)
-})
-.then(() => {
-  pi.destroy(() => {
-    console.log("Done.")
-    process.exit(0);
-  });
-})
-.catch((error) => {
-  die(`Error controlling pin ${pin} for output: ${error}\n${error.stack}`);
-});
+var stop = false;
+
+function cycle(count) {
+  if (count > 0 && !stop) {
+    pulse(red, duration)
+    .then(() => pulse(green, duration))
+    .then(() => pulse(blue, duration))
+    .then(() => cycle(count - 1))
+    .catch((error) => {
+      die(`Error controlling pin ${pin} for output: ${error}\n${error.stack}`);
+    });
+  } else {
+    pi.destroy(() => process.exit(0));
+  }
+}
+
+process.on('SIGINT', () => stop = true);
+
+cycle(5);
 
