@@ -2,9 +2,8 @@ const _ = require('lodash');
 const Q = require('q');
 const pi = require('./pi');
 
-const red = 11;
-const green = 13;
-const blue = 15;
+const power = 16;
+const signal = 18;
 
 const duration = 500;
 
@@ -15,12 +14,12 @@ function die(message) {
 
 var stop = false;
 
-function cycle(count) {
-  if (count > 0 && !stop) {
-    pi.pulse(red, duration)
-    .then(() => pi.pulse(green, duration))
-    .then(() => pi.pulse(blue, duration))
-    .then(() => cycle(count - 1))
+function measure() {
+  if (!stop) {
+    pi.get(signal)
+    .then((value) => {
+      console.log(`Value is: ${value}`);
+    })
     .catch((error) => {
       die(`Error controlling pin ${pin} for output: ${error}\n${error.stack}`);
     });
@@ -31,5 +30,7 @@ function cycle(count) {
 
 process.on('SIGINT', () => stop = true);
 
-cycle(100);
+pi.on(power)
+.then(() => measure())
+.catch((error) => die(`Error enabling power pin: ${error}\n${error.stack}`));
 
