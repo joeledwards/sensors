@@ -2,9 +2,9 @@ const _ = require('lodash');
 const Q = require('q');
 const pi = require('./pi');
 
-const red = 11;
-const green = 13;
-const blue = 15;
+const red = { number: 11, label: "red" };
+const green = { number: 13, label: "green" };
+const blue = { number: 15, label: "blue" };
 
 const duration = 500;
 
@@ -13,16 +13,21 @@ function die(message) {
   pi.shutdown().then(() => process.exit(1));
 }
 
+function pulse(pin, duration) {
+  console.log(`Pin ${pin.number}, ${pin.label}`);
+  return pi.pulse(pin.number, duration);
+}
+
 var stop = false;
 
 function cycle(count) {
   if (count > 0 && !stop) {
-    pi.pulse(red, duration)
-    .then(() => pi.pulse(green, duration))
-    .then(() => pi.pulse(blue, duration))
+    pulse(red, duration)
+    .then(() => pulse(green, duration))
+    .then(() => pulse(blue, duration))
     .then(() => cycle(count - 1))
     .catch((error) => {
-      die(`Error controlling pin ${pin} for output: ${error}\n${error.stack}`);
+      die(`Error controlling pin ${pin.number} for output: ${error}\n${error.stack}`);
     });
   } else {
     pi.shutdown().then(() => process.exit(0));
