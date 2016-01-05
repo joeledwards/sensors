@@ -13,9 +13,9 @@ function die(message) {
   pi.shutdown().then(() => process.exit(1));
 }
 
-function pulse(pin, duration) {
-  console.log(`Pin ${pin.number}, ${pin.label}`);
-  return pi.pulse(pin.number, duration);
+function pulse(pins, duration) {
+  console.log(`Pin(s) ${_(pins).map((pin) => pin.number).value()}`);
+  return Q.all(_(pins).map((pin) => pi.pulse(pin.number, duration)));
 }
 
 var stop = false;
@@ -23,8 +23,12 @@ var stop = false;
 function cycle(count) {
   if (count > 0 && !stop) {
     pulse(red, duration)
-    .then(() => pulse(green, duration))
-    .then(() => pulse(blue, duration))
+    .then(() => pulse([green], duration))
+    .then(() => pulse([blue], duration))
+    .then(() => pulse([red, green], duration))
+    .then(() => pulse([green, blue], duration))
+    .then(() => pulse([blue, red], duration))
+    .then(() => pulse([red, green, blue], duration))
     .then(() => cycle(count - 1))
     .catch((error) => {
       die(`Error controlling pin ${pin.number} for output: ${error}\n${error.stack}`);
