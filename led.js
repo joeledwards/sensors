@@ -15,14 +15,14 @@ function die(message) {
 
 function pulse(pins, duration) {
   console.log(`Pin(s) ${_(pins).map((pin) => pin.number).value()}`);
-  return Q.all(_(pins).map((pin) => pi.pulse(pin.number, duration)));
+  return Q.allSettled(_(pins).map((pin) => pi.pulse(pin.number, duration)));
 }
 
 var stop = false;
 
 function cycle(count) {
   if (count > 0 && !stop) {
-    pulse(red, duration)
+    pulse([red], duration)
     .then(() => pulse([green], duration))
     .then(() => pulse([blue], duration))
     .then(() => pulse([red, green], duration))
