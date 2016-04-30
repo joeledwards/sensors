@@ -36,7 +36,7 @@ const OFF = false;
 function get(pin) {
   var d = Q.defer();
 
-  gpio.setup(pin, gpio.DIR_IN, gpio.EDGE_RISING, (error) => {
+  gpio.setup(pin, gpio.DIR_IN, gpio.EDGE_FALLING, (error) => {
     if (error) {
       d.reject(error);
     } else {
