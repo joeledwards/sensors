@@ -26,61 +26,110 @@ GPIO 26          37 -- 38  GPIO 20 / MOSI
 GND              39 -- 40  GPIO 21 / SCLK
 
 */
-const red = 11;
-const green = 13;
-const blue = 15;
 
 const ON = true;
 const OFF = false;
 
+const EDGE_NONE = gpio.EDGE_NONE;
+const EDGE_FALL = gpio.EDGE_FALLING;
+const EDGE_RISE = gpio.EDGE_RISING;
+
+const READ_EDGE = EDGE_FALL;
+const WRITE_EDGE = EDGE_NONE;
+
+const GPIO_READ = gpio.DIR_IN;
+const GPIO_WRITE = gpio.DIR_OUT;
+
+const pinMap = {};
+
+// Setup the GPIO pin.
+function setup(pin, ioDirection, edge) {
+  var d = Q.defer();
+
+  try {
+    gpio.setup(pin, ioDirection, edge, (error) => {
+      if (error) {
+        d.reject(error);
+      } else {
+        d.resolve();
+      }
+    });
+  } catch (err) {
+    d.reject(err);
+  }
+
+  return d.promise;
+}
+
+// Read from the specified GPIO pin.
+function read(pin) {
+  var d = Q.defer();
+
+  try {
+    gpio.input(pin, (error, value) => {
+      if (error) {
+        d.reject(error);
+      } else {
+        d.resolve(value);
+      }
+    });
+  } catch (err) {
+    d.reject(err);
+  }
+
+  return d.promise;
+}
+
+// Write to the specified GPIO pin.
+function write(pin, direction) {
+  var d = Q.defer();
+
+  try {
+    gpio.output(pin, direction, (error) => {
+      if (error) {
+        d.reject(error);
+      } else {
+        d.resolve();
+      }
+    });
+  } catch (err) {
+    d.reject(err);
+  }
+
+  return d.promise;
+}
+
+// Get the current value of the specified GPIO pin.
 function get(pin) {
-  var d = Q.defer();
-
-  gpio.setup(pin, gpio.DIR_IN, gpio.EDGE_FALLING, (error) => {
-    if (error) {
-      d.reject(error);
-    } else {
-      gpio.input(pin, (error, value) => {
-        if (error) {
-          d.reject(error);
-        } else {
-          d.resolve(value);
-        }
-      });
-    }
-  });
-
-  return d.promise;
+  if (pinMap[pin] !== "read") {
+    return setup(pin, GPIO_READ, READ_EDGE)
+        .then(() => read(pin));
+  } else {
+    return read(pin);
+  }
 }
 
+// Set the current value of the specified GPIO pin.
 function set(pin, direction) {
-  var d = Q.defer();
-
-  gpio.setup(pin, gpio.DIR_OUT, gpio.EDGE_NONE, (error) => {
-    if (error) {
-      d.reject(error);
-    } else {
-      gpio.output(pin, direction, (error) => {
-        if (error) {
-          d.reject(error);
-        } else {
-          d.resolve();
-        }
-      });
-    }
-  });
-
-  return d.promise;
+  if (pinMap[pin] !== "write") {
+    return setup(pin, GPIO_WRITE, WRITE_EDGE)
+        .then(() => write(pin, direction));
+  } else {
+    return write(pin, direction);
+  }
 }
 
+// Set a GPIO pin to ON voltage.
 function on(pin) {
   return set(pin, ON);
 }
 
+// Set a GPIO pin to OFF voltage.
 function off(pin) {
   return set(pin, OFF);
 }
 
+// Pulse the pin to ON voltage for duration.
 function pulse(pin, duration) {
   var d = Q.defer();
 
@@ -97,6 +146,7 @@ function pulse(pin, duration) {
   return d.promise;
 }
 
+// Shutdown the GPIO lib.
 function shutdown() {
   var d = Q.defer();
 
