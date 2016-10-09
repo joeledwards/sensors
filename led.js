@@ -1,5 +1,5 @@
 const _ = require('lodash');
-const Q = require('q');
+const P = require('bluebird');
 const pi = require('./pi');
 
 const red = { pins: [11], label: "red" };
@@ -19,7 +19,7 @@ function die(message) {
 
 function pulse(color, duration) {
   console.log(`Pulsing ${color.label}; pins ${color.pins}`);
-  return Q.all(_(color.pins).map((pin) => pi.pulse(pin, duration)).value());
+  return P.all(_(color.pins).map((pin) => pi.pulse(pin, duration)).value());
 }
 
 var stop = false;

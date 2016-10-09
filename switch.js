@@ -1,7 +1,6 @@
 require('log-a-log');
 
 const _ = require('lodash');
-const Q = require('q');
 const pi = require('./pi');
 const moment = require('moment');
 const durations = require('durations');

@@ -1,5 +1,5 @@
 const _ = require('lodash');
-const Q = require('q');
+const P = require('bluebird');
 const gpio = require('rpi-gpio');
 
 /* List of pins
@@ -44,59 +44,29 @@ const pinMap = {};
 
 // Setup the GPIO pin.
 function setup(pin, ioDirection, edge) {
-  var d = Q.defer();
-
-  try {
-    gpio.setup(pin, ioDirection, edge, (error) => {
-      if (error) {
-        d.reject(error);
-      } else {
-        d.resolve();
-      }
+  return new ((resolve, reject) => {
+    gpio.setup(pin, ioDirection, edge, error => {
+      _.isNil(error) ? resolve() : reject(error);
     });
-  } catch (err) {
-    d.reject(err);
-  }
-
-  return d.promise;
+  });
 }
 
 // Read from the specified GPIO pin.
 function read(pin) {
-  var d = Q.defer();
-
-  try {
+  return new ((resolve, reject) => {
     gpio.input(pin, (error, value) => {
-      if (error) {
-        d.reject(error);
-      } else {
-        d.resolve(value);
-      }
+      _.isNil(error) ? resolve(value) : reject(error);
     });
-  } catch (err) {
-    d.reject(err);
-  }
-
-  return d.promise;
+  });
 }
 
 // Write to the specified GPIO pin.
 function write(pin, direction) {
-  var d = Q.defer();
-
-  try {
-    gpio.output(pin, direction, (error) => {
-      if (error) {
-        d.reject(error);
-      } else {
-        d.resolve();
-      }
+  return new ((resolve, reject) => {
+    gpio.output(pin, direction, error => {
+      _.isNil(error) ? resolve() : reject(error);
     });
-  } catch (err) {
-    d.reject(err);
-  }
-
-  return d.promise;
+  });
 }
 
 // Get the current value of the specified GPIO pin.
@@ -131,28 +101,22 @@ function off(pin) {
 
 // Pulse the pin to ON voltage for duration.
 function pulse(pin, duration) {
-  var d = Q.defer();
-
-  on(pin)
-  .then(() => {
-    setTimeout(() => {
-      off(pin)
-      .then(() => d.resolve())
-      .catch((error) => d.reject(error));
-    }, duration);
-  })
-  .catch((error) => d.reject(error));
-
-  return d.promise;
+  return new P((resolve, reject) => {
+    on(pin)
+    .then(() => {
+      setTimeout(() => {
+        off(pin)
+        .then(() => resolve())
+        .catch((error) => reject(error));
+      }, duration);
+    })
+    .catch((error) => reject(error));
+  });
 }
 
 // Shutdown the GPIO lib.
 function shutdown() {
-  var d = Q.defer();
-
-  gpio.destroy(() => d.resolve());
-
-  return d.promise;
+  return new P(resolve => gpio.destroy(() => resolve()));
 }
 
 module.exports = {
