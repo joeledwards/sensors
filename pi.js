@@ -1,3 +1,5 @@
+require('log-a-log');
+
 const _ = require('lodash');
 const P = require('bluebird');
 const gpio = require('rpi-gpio');
@@ -33,8 +35,9 @@ const OFF = false;
 const EDGE_NONE = gpio.EDGE_NONE;
 const EDGE_FALL = gpio.EDGE_FALLING;
 const EDGE_RISE = gpio.EDGE_RISING;
+const EDGE_BOTH = gpio.EDGE_BOTH;
 
-const READ_EDGE = EDGE_FALL;
+const READ_EDGE = EDGE_BOTH;
 const WRITE_EDGE = EDGE_NONE;
 
 const GPIO_READ = gpio.DIR_IN;
@@ -44,7 +47,7 @@ const pinMap = {};
 
 // Setup the GPIO pin.
 function setup(pin, ioDirection, edge) {
-  return new ((resolve, reject) => {
+  return new P((resolve, reject) => {
     gpio.setup(pin, ioDirection, edge, error => {
       _.isNil(error) ? resolve() : reject(error);
     });
@@ -53,7 +56,7 @@ function setup(pin, ioDirection, edge) {
 
 // Read from the specified GPIO pin.
 function read(pin) {
-  return new ((resolve, reject) => {
+  return new P((resolve, reject) => {
     gpio.input(pin, (error, value) => {
       _.isNil(error) ? resolve(value) : reject(error);
     });
@@ -62,7 +65,7 @@ function read(pin) {
 
 // Write to the specified GPIO pin.
 function write(pin, direction) {
-  return new ((resolve, reject) => {
+  return new P((resolve, reject) => {
     gpio.output(pin, direction, error => {
       _.isNil(error) ? resolve() : reject(error);
     });
@@ -119,8 +122,26 @@ function shutdown() {
   return new P(resolve => gpio.destroy(() => resolve()));
 }
 
+// Listen for an event.
+function listen(event, handler) {
+  gpio.on(event, handler);
+}
+
+// Ignore an event.
+function ignore(event, handler) {
+  gpio.removeListener(event, handler);
+}
+
+// Ignore one or all events.
+function ignoreAll(event) {
+  gpio.removeAllListeners(event);
+}
+
 module.exports = {
   get: get,
+  ignore: ignore,
+  ignoreAll: ignoreAll,
+  listen: listen,
   off: off,
   on: on,
   pulse: pulse,

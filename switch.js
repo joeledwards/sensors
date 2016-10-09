@@ -8,6 +8,14 @@ const durations = require('durations');
 var stop = false;
 var pin = 22;
 
+pi.listen('export', channel => {
+  console.log(`[GPIO] channel ${channel} exported`);
+});
+
+pi.listen('change', (channel, value) => {
+  console.log(`[GPIO] channel ${channel} is now ${value}`);
+});
+
 function read() {
   pi.get(pin)
   .then((value) => {
