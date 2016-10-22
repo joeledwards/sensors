@@ -12,11 +12,12 @@
   "author": "Joel Edwards",
   "license": "MIT",
   "dependencies": {
+    "async": "^2.1.2",
     "bluebird": "^3.4.6",
-    "durations": "^2.1.0",
+    "durations": "^3.0.0",
     "i2c": "^0.2.3",
     "lodash": "^4.11.1",
-    "log-a-log": "^1.2.1",
+    "log-a-log": "^2.0.0",
     "moment": "^2.13.0",
     "rpi-gpio": "^0.7.0"
   },
