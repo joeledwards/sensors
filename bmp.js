@@ -101,10 +101,8 @@ function getRawTemperature() {
   });
 }
 
-let oss = 0;
-
 // Read the raw (unadjusted) pressure data from the sensor.
-function getRawPressure() {
+function getRawPressure(oss) {
   return new P((resolve, reject) => {
     let cmd = 0x34 + (oss << 6);
 
@@ -145,56 +143,62 @@ const twoToTheFifteenth = Math.pow(2, 15);
 const twoToTheSixteenth = Math.pow(2, 16);
 
 // Perform computation of real temperature based on metadata and pressure.
-function computeRealValues({metadata, temp, pressure}) {
+function computeRealValues({metadata, oss, temp, pressure}) {
   let {
     ac1, ac2, ac3, ac4, ac5, ac6,
     b1, b2,
     mb, mc, md
   } = metadata;
 
-  let x1 = ((temp - ac6) * ac5 >> 15);
-  console.log(`x1 = ${x1}`);
+  let x1 = Math.floor((temp - ac6) * ac5 / twoToTheFifteenth);
+  //console.log(`x1 = ${x1}`);
   let x2 = Math.floor(mc * twoToTheEleventh / (x1 + md));
-  console.log(`x2 = ${x2}`);
+  //console.log(`x2 = ${x2}`);
   let b5 = x1 + x2;
-  console.log(`b5 = ${b5}`);
-  let realTemp = (b5 + 8) >> 4;
-  console.log(`realTemp = ${(realTemp / 10.0).toFixed(1)} C`);
+  //console.log(`b5 = ${b5}`);
+  let realTemp = Math.floor((b5 + 8) / 16);
+  //console.log(`realTemp = ${realTemp}`);
 
   let b6 = b5 - 4000;
-  console.log(`b6 = ${b6}`);
-  x1 = (b2 * ((b6 * b6) >> 12)) >> 11;
-  console.log(`x1 = ${x1}`);
-  x2 = (ac2 * b6) >> 11;
-  console.log(`x2 = ${x2}`);
+  //console.log(`b6 = ${b6}`);
+  x1 = Math.floor((b2 * ((b6 * b6) / twoToTheTwelfth)) / twoToTheEleventh);
+  //console.log(`x1 = ${x1}`);
+  x2 = Math.floor((ac2 * b6) / twoToTheEleventh);
+  //console.log(`x2 = ${x2}`);
   let x3 = x1 + x2;
-  console.log(`x3 = ${x3}`);
-  let b3 = ((ac1 * 4 + x3) << oss + 2) >> 2;
-  console.log(`b3 = ${b3}`);
-  x1 = ac3 * b6 >> 13;
-  console.log(`x1 = ${x1}`);
-  x2 = (b1 * ((b6 * b6) >> 12)) >> 16;
-  console.log(`x2 = ${x2}`);
+  //console.log(`x3 = ${x3}`);
+  let b3 = Math.floor((((ac1 * 4 + x3) << oss) + 2) / 4);
+  //console.log(`b3 = ${b3}`);
+  x1 = Math.floor(ac3 * b6 / twoToTheThirteenth);
+  //console.log(`x1 = ${x1}`);
+  x2 = Math.floor((b1 * ((b6 * b6) >> 12)) / twoToTheSixteenth);
+  //console.log(`x2 = ${x2}`);
   x3 = ((x1 + x2) + 2) >> 2;
-  console.log(`x3 = ${x3}`);
-  b4 = (ac4 * (x3 + 32768)) >> 15;
-  console.log(`b4 = ${b4}`);
+  //console.log(`x3 = ${x3}`);
+  b4 = Math.floor((ac4 * (x3 + 32768)) / twoToTheFifteenth);
+  //console.log(`b4 = ${b4}`);
   b7 = (pressure - b3) * (50000 >> oss);
-  console.log(`b7 = ${b7}`);
+  //console.log(`b7 = ${b7}`);
 
   let p;
 
   if (b7 < 0x80000000) {
     p = Math.floor((b7 * 2) / b4);
   } else {
-    p = Math.floor(b7 / b4) * 2;
+    p = Math.floor((b7 / b4) * 2);
   }
 
-  x1 = (p >> 8) * (p >> 8);
-  x1 = (x1 * 3038) >> 16;
-  x2 = (-7357 * p) >> 16;
+  //console.log(`p = ${p}`);
 
-  realPressure = p + (x1 + x2 + 3791) >> 4;
+  x1 = Math.floor((p / 256) * (p / 256));
+  //console.log(`x1 = ${x1}`);
+  x1 = (x1 * 3038) >> 16;
+  //console.log(`x1 = ${x1}`);
+  x2 = (-7357 * p) >> 16;
+  //console.log(`x2 = ${x2}`);
+
+  realPressure = Math.floor(p + (x1 + x2 + 3791) / 16);
+  //console.log(`realPressure = ${realPressure}`);
 
   return {realTemp, realPressure};
 }
@@ -204,33 +208,69 @@ function computeRealPressure({metadata, pressure, temp}) {
 }
 
 // Take a reading from the sensor module.
-function takeReading(metadata) {
-  getRawTemperature()
+function takeReading({metadata, oss}) {
+  getRawTemperature(oss)
   .then(temp => {
-    return getRawPressure()
+    return getRawPressure(oss)
     .then(pressure => {
-      return {metadata, temp, pressure};
+      return {metadata, oss, temp, pressure};
     });
   })
   .then(data => {
-    let {metadata, temp, pressure} = data;
-    console.log("Raw values:");
-    console.log(`       raw temperature = ${temp}`);
-    console.log(`          raw pressure = ${pressure}`);
-
+    let {metadata, oss, temp, pressure} = data;
     let {realTemp, realPressure} = computeRealValues(data);
-    console.log(`  adjusted temperature = ${realTemp}`);
-    console.log(`     adjusted pressure = ${realPressure}`);
 
-    setTimeout(() => takeReading(metadata), 1000);
+    let tempC = (realTemp / 10).toFixed(1);
+    let pressureKpa = (realPressure / 1000).toFixed(3);
+
+    console.log(`  adjusted temperature = ${tempC} C`);
+    console.log(`     adjusted pressure = ${pressureKpa} kPa`);
+
+    setTimeout(() => takeReading({metadata, oss}), 1000);
   })
   .catch(error => {
     console.error("Error reading sensor data:", error);
   });
 }
 
-// Read the metadata, then start sampling.
-readMetadata()
-.then(metadata => takeReading(metadata))
-.catch(error => console.error("Error:", error));
+function run() {
+  // Read the metadata, then start sampling.
+  let oss = 0;
+  console.log(`oss is ${oss}`);
+
+  readMetadata()
+  .then(metadata => takeReading({metadata, oss}))
+  .catch(error => console.error("Error:", error));
+}
+
+function test() {
+  let metadata = {
+    ac1: 408,
+    ac2: -72,
+    ac3: -14383,
+    ac4: 32741,
+    ac5: 32757,
+    ac6: 23153,
+    b1: 6190,
+    b2: 4,
+    mb: -32767,
+    mc: -8711,
+    md: 2868,
+  };
+
+  let oss = 0;
+  let temp = 27898;
+  let pressure = 23843;
+
+  let data = {metadata, oss, temp, pressure};
+  let {realTemp, realPressure} = computeRealValues(data);
+
+  let tempC = (realTemp / 10).toFixed(1);
+  let pressureKpa = (realPressure / 1000).toFixed(3);
+
+  console.log(`  adjusted temperature = ${tempC} C`);
+  console.log(`     adjusted pressure = ${pressureKpa} kPa`);
+}
+
+run();
 
