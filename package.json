@@ -19,7 +19,8 @@
     "lodash": "^4.11.1",
     "log-a-log": "^2.0.0",
     "moment": "^2.13.0",
-    "rpi-gpio": "^0.7.0"
+    "rpi-gpio": "^0.7.0",
+    "uint-js": "0.0.4"
   },
   "engines": {
     "node": ">=5.0"
