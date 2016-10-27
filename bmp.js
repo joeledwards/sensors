@@ -143,21 +143,21 @@ const twoToTheFifteenth = Math.pow(2, 15);
 const twoToTheSixteenth = Math.pow(2, 16);
 
 // Perform computation of real temperature based on metadata and pressure.
-function computeRealValues({metadata, oss, temp, pressure}) {
+function computeRealValues({metadata, oss, rawTemp, rawPressure}) {
   let {
     ac1, ac2, ac3, ac4, ac5, ac6,
     b1, b2,
     mb, mc, md
   } = metadata;
 
-  let x1 = Math.floor((temp - ac6) * ac5 / twoToTheFifteenth);
+  let x1 = Math.floor((rawTemp - ac6) * ac5 / twoToTheFifteenth);
   //console.log(`x1 = ${x1}`);
   let x2 = Math.floor(mc * twoToTheEleventh / (x1 + md));
   //console.log(`x2 = ${x2}`);
   let b5 = x1 + x2;
   //console.log(`b5 = ${b5}`);
-  let realTemp = Math.floor((b5 + 8) / 16);
-  //console.log(`realTemp = ${realTemp}`);
+  let temperature = Math.floor((b5 + 8) / 16);
+  //console.log(`temperature = ${temperature}`);
 
   let b6 = b5 - 4000;
   //console.log(`b6 = ${b6}`);
@@ -175,9 +175,9 @@ function computeRealValues({metadata, oss, temp, pressure}) {
   //console.log(`x2 = ${x2}`);
   x3 = ((x1 + x2) + 2) >> 2;
   //console.log(`x3 = ${x3}`);
-  b4 = Math.floor((ac4 * (x3 + 32768)) / twoToTheFifteenth);
+  let b4 = Math.floor((ac4 * (x3 + 32768)) / twoToTheFifteenth);
   //console.log(`b4 = ${b4}`);
-  b7 = (pressure - b3) * (50000 >> oss);
+  let b7 = (rawPressure - b3) * (50000 >> oss);
   //console.log(`b7 = ${b7}`);
 
   let p;
@@ -197,34 +197,35 @@ function computeRealValues({metadata, oss, temp, pressure}) {
   x2 = (-7357 * p) >> 16;
   //console.log(`x2 = ${x2}`);
 
-  realPressure = Math.floor(p + (x1 + x2 + 3791) / 16);
-  //console.log(`realPressure = ${realPressure}`);
+  let pressure = Math.floor(p + (x1 + x2 + 3791) / 16);
+  console.log(`pressure = ${pressure}`);
 
-  return {realTemp, realPressure};
-}
+  let p0 = 1013.25 // pressure at sea level
+  //let altitude = 44330 * (1 - Math.pow((pressure / p0), 1 / 5.255));
+  let altitude = ((Math.pow((p0 / (pressure / 100)), 1/5.257) - 1.0) * (temperature / 10 + 273.15)) / 0.0065;
 
-// Perform computation of real pressure based on metadata and temperature.
-function computeRealPressure({metadata, pressure, temp}) {
+  return {temperature, pressure, altitude};
 }
 
 // Take a reading from the sensor module.
 function takeReading({metadata, oss}) {
   getRawTemperature(oss)
-  .then(temp => {
+  .then(rawTemp => {
     return getRawPressure(oss)
-    .then(pressure => {
-      return {metadata, oss, temp, pressure};
+    .then(rawPressure => {
+      return {metadata, oss, rawTemp, rawPressure};
     });
   })
   .then(data => {
-    let {metadata, oss, temp, pressure} = data;
-    let {realTemp, realPressure} = computeRealValues(data);
+    let {temperature, pressure, altitude} = computeRealValues(data);
 
-    let tempC = (realTemp / 10).toFixed(1);
-    let pressureKpa = (realPressure / 1000).toFixed(3);
+    let tempC = (temperature / 10).toFixed(1);
+    let pressureKpa = (pressure / 1000).toFixed(3);
+    let altitudeM = altitude.toFixed(1);
 
     console.log(`  adjusted temperature = ${tempC} C`);
     console.log(`     adjusted pressure = ${pressureKpa} kPa`);
+    console.log(`              altitude = ${altitudeM} m`);
 
     setTimeout(() => takeReading({metadata, oss}), 1000);
   })
