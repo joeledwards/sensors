@@ -1,3 +1,5 @@
+require('log-a-log');
+
 const P = require('bluebird');
 const i2c = require('i2c');
 const async = require('async');
@@ -198,7 +200,7 @@ function computeRealValues({metadata, oss, rawTemp, rawPressure}) {
   //console.log(`x2 = ${x2}`);
 
   let pressure = Math.floor(p + (x1 + x2 + 3791) / 16);
-  console.log(`pressure = ${pressure}`);
+  //console.log(`pressure = ${pressure}`);
 
   let p0 = 1013.25 // pressure at sea level
   //let altitude = 44330 * (1 - Math.pow((pressure / p0), 1 / 5.255));
@@ -220,12 +222,14 @@ function takeReading({metadata, oss}) {
     let {temperature, pressure, altitude} = computeRealValues(data);
 
     let tempC = (temperature / 10).toFixed(1);
+    let tempF = ((temperature / 10) * 1.8 + 32).toFixed(1);
     let pressureKpa = (pressure / 1000).toFixed(3);
     let altitudeM = altitude.toFixed(1);
 
-    console.log(`  adjusted temperature = ${tempC} C`);
-    console.log(`     adjusted pressure = ${pressureKpa} kPa`);
-    console.log(`              altitude = ${altitudeM} m`);
+    console.log(`${tempC} C (${tempF} F) | ${pressureKpa} kPa | ${altitudeM} m`);
+    //console.log(`  adjusted temperature = ${tempC} C`);
+    //console.log(`     adjusted pressure = ${pressureKpa} kPa`);
+    //console.log(`              altitude = ${altitudeM} m`);
 
     setTimeout(() => takeReading({metadata, oss}), 1000);
   })
@@ -267,6 +271,7 @@ function test() {
   let {realTemp, realPressure} = computeRealValues(data);
 
   let tempC = (realTemp / 10).toFixed(1);
+  let tempF = ((realTemp / 10) * 1.8 + 32).toFixed(1);
   let pressureKpa = (realPressure / 1000).toFixed(3);
 
   console.log(`  adjusted temperature = ${tempC} C`);
