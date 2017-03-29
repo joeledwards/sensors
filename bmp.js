@@ -282,8 +282,8 @@ function getCogsConfig() {
       cogsConfig = readFile(cogsConfigFile)
       .then(JSON.parse)
       .catch(error => {
-        console.error("Could not read config file:", error)
-        return {};
+        console.error("Could not read cogs config file:", error)
+        throw error;
       });
     }
   }
@@ -303,6 +303,12 @@ function getCogsClient() {
         return P.resolve({publish: () => {}});
       }
     })
+    .catch(error => {
+      // If we initiate the cogs handle when a config file was supplied,
+      // then shutdown the connection.
+      logger.error("Terminating due to error creating cogs client:", error);
+      return process.exit(1);
+    });
   }
 
   return cogsClient;
