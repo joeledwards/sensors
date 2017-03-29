@@ -1,8 +1,11 @@
 require('log-a-log');
 
 const P = require('bluebird');
+const fs = require('fs');
 const i2c = require('i2c');
+const cogs = require('cogs-sdk');
 const async = require('async');
+const moment = require('moment');
 const durations = require('durations');
 
 let address = 0x77;
@@ -97,7 +100,7 @@ function getRawTemperature() {
               resolve(temp);
             }
           });
-        }, 5);
+        }, 6);
       }
     });
   });
@@ -130,7 +133,7 @@ function getRawPressure(oss) {
               resolve(pressure);
             }
           });
-        }, 5);
+        }, 6);
       }
     });
   });
@@ -209,8 +212,22 @@ function computeRealValues({metadata, oss, rawTemp, rawPressure}) {
   return {temperature, pressure, altitude};
 }
 
+function scheduleNextReading(data) {
+  // Make sure that the next reading is schedule
+  // for the beginning of the next second.
+  let next = moment.utc().add(1, 'seconds');
+  next.milliseconds(0);
+  let now = moment.utc();
+  let offset = next.valueOf() - now.valueOf();
+
+  setTimeout(() => takeReading(data), offset);
+}
+
 // Take a reading from the sensor module.
+const firstReading = true;
 function takeReading({metadata, oss}) {
+  const timestamp = moment.utc().toISOString();
+
   getRawTemperature(oss)
   .then(rawTemp => {
     return getRawPressure(oss)
@@ -221,21 +238,86 @@ function takeReading({metadata, oss}) {
   .then(data => {
     let {temperature, pressure, altitude} = computeRealValues(data);
 
-    let tempC = (temperature / 10).toFixed(1);
-    let tempF = ((temperature / 10) * 1.8 + 32).toFixed(1);
-    let pressureKpa = (pressure / 1000).toFixed(3);
-    let altitudeM = altitude.toFixed(1);
+    let tempC = parseFloat((temperature / 10).toFixed(1));
+    let tempF = parseFloat(((temperature / 10) * 1.8 + 32).toFixed(1));
+    let pressureKpa = parseFloat((pressure / 1000).toFixed(3));
+    let pressurePa = parseFloat(pressure.toFixed(0));
+    let altitudeM = parseFloat(altitude.toFixed(1));
+
+    publishData({
+      timestamp,
+      temperature_c: tempC,
+      temperature_f: tempF,
+      pressure_pa: pressurePa,
+      pressure_kpa: pressureKpa,
+      altitude_m: altitudeM, 
+    });
 
     console.log(`${tempC} C (${tempF} F) | ${pressureKpa} kPa | ${altitudeM} m`);
     //console.log(`  adjusted temperature = ${tempC} C`);
     //console.log(`     adjusted pressure = ${pressureKpa} kPa`);
     //console.log(`              altitude = ${altitudeM} m`);
 
-    setTimeout(() => takeReading({metadata, oss}), 1000);
+    scheduleNextReading({metadata, oss});
   })
   .catch(error => {
     console.error("Error reading sensor data:", error);
   });
+}
+
+function fileExists(fileName) {
+  return new P(resolve => fs.exists(fileName, resolve));
+}
+
+const readFile = P.promisify(fs.readFile);
+
+const cogsConfigFile = process.env.COGS_CONFIG_FILE;
+let cogsConfig;
+function getCogsConfig() {
+  if (cogsConfig == null) {
+    if (cogsConfigFile == null) {
+      console.log("Cogs config file not supplied.");
+      cogsConfig = P.resolve({});
+    } else {
+      cogsConfig = readFile(cogsConfigFile)
+      .then(JSON.parse)
+      .catch(error => {
+        console.error("Could not read config file:", error)
+        return {};
+      });
+    }
+  }
+
+  return cogsConfig;
+}
+
+let cogsClient;
+function getCogsClient() {
+  if (cogsClient == null) {
+    cogsClient = getCogsConfig()
+    .then(cfg => {
+      if (cfg.pubsub) {
+        let {keys, options} = cfg.pubsub;
+        return cogs.pubsub.connect(keys, options);
+      } else {
+        return P.resolve({publish: () => {}});
+      }
+    })
+  }
+
+  return cogsClient;
+}
+
+const publishChannel = 'rocket-bmp-1s';
+function publishData(data) {
+  const message = JSON.stringify(data);
+  //console.log(`Publishing data: ${message}`);
+
+  //*
+  getCogsClient()
+  .then(client => client.publish(publishChannel, message))
+  .catch(error => console.error('Error publishing data:', error));
+  //*/
 }
 
 function run() {
@@ -244,7 +326,7 @@ function run() {
   console.log(`oss is ${oss}`);
 
   readMetadata()
-  .then(metadata => takeReading({metadata, oss}))
+  .then(metadata => scheduleNextReading({metadata, oss}))
   .catch(error => console.error("Error:", error));
 }
 
